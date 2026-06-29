@@ -22,19 +22,70 @@ void PrepWinsock() {
         exit(2);
     }
 }
+int MapArgv(char *argv[])
+{
+    if ((strcmp(argv[1], "-T") == 0) || (strcmp(argv[1], "-Test") == 0))
+        return 0;
 
-void Netrun(int argc, char *argv[] = NULL)
+    else if ((strcmp(argv[1], "-R") == 0) || (strcmp(argv[1], "-Resolve") == 0))
+        return 1;
+
+    else if ((strcmp(argv[1], "-Netrun") == 0))
+        return 2;
+
+    return -1;
+}
+
+void Test(int argc) //-T Test
+{
+    Network network;
+    network.PopulateSocket(argc);
+    network.SetupHintsServer();
+    network.SetupHintsClient();
+    exit(0);
+}
+
+void Resolve(int argc, char *argv[]) //-R Resolve
 {
     Network network;
     network.ShowIpHostname(argc, argv);
-    //network.PopulateSocket();
+    exit(0);
+}
+
+void Netrun(int argc, char *argv[]) //Netrun Network run
+{
+    Network network;
     network.LoopBounceConnection();
 }
 
 int main(int argc, char *argv[])
 {
     PrepWinsock();
-    Netrun(argc, argv);
+
+    int Flag = MapArgv(argv);
+       switch (Flag)
+    {
+        case -1:
+            fprintf(stderr, "Unknown flag: %s\n", argv[1]);
+            break;
+
+        case 0:
+            Test(argc);
+            break;
+
+        case 1:
+            Resolve(argc, argv);
+            break;
+
+        case 2:
+            Netrun(argc, argv);
+            break;
+
+        default:
+            fprintf(stderr, "No Idea what you did but it was something fishy\n");
+            break;
+    }
+
     WSACleanup();
     return 0;
 }

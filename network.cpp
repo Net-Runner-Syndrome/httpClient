@@ -8,6 +8,20 @@
 constexpr int BACKLOG = 5;
 constexpr auto PORT = "8081";
 
+void Network::ArgcError(int argc)
+{
+    if(argc != 3)
+   {
+    fprintf(stderr, "[!] Please specify 1 hostname to resolve, usage: [binary file] [Flag] [Domain]\n[-] Example: ./xyz.exe -R www.example.com\n");
+    exit(1);
+   }
+}
+
+void Network::PassMSG(const char* pSTR)
+{
+    fprintf(stderr, "[+] %s Code: %s\n", pSTR, gai_strerror(status));
+}
+
 void Network::PopulateHints()
 {
     memset(&hints, 0, sizeof(hints));
@@ -26,6 +40,7 @@ void Network::SetupHintsServer()
         return;
     }
 
+    Network::PassMSG("Server Status");
     freeaddrinfo(servinfo);
 }  
 
@@ -34,10 +49,12 @@ void Network::SetupHintsClient()
     Network::PopulateHints();
     if ((status = getaddrinfo("www.example.com", "http", &hints, &servinfo)) != 0) 
     {
-        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+        fprintf(stderr, "getaddrinfo error: [[%s]]\n", gai_strerror(status));
         return;
     }
 
+    Network::PassMSG("Client Status");
+    freeaddrinfo(servinfo);
     freeaddrinfo(servinfo);
 }
 
@@ -77,20 +94,16 @@ void Network::HandleIPVersionh() //I should probably use (Network::HandleIPVersi
 
 int Network::ShowIpHostname(int argc, char *argv[]) 
 {
-   if(argc != 2)
-   {
-    fprintf(stderr, "[!] Please specify 1 hostname to resolve, usage: [binary file] [hostname]\n[-] Example: ./xyz.exe www.example.com\n");
-    return 1;
-   }
+    Network::ArgcError(argc);
 
     Network::PopulateHints();
-    if ((status = getaddrinfo(argv[1], NULL, &hints, &head)) != 0) 
+    if ((status = getaddrinfo(argv[2], NULL, &hints, &head)) != 0) 
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         return 2;
     }
     
-    printf("IP addresses for %s:\n\n", argv[1]);
+    printf("IP addresses for %s:\n\n", argv[2]);
     for(iterator = head; iterator != NULL; iterator = iterator->ai_next) //Linked List shit cause I did not pay attention to DSA in class
     {
         Network::HandleIPVersioni();
@@ -105,13 +118,14 @@ int Network::ShowIpHostname(int argc, char *argv[])
 }
 
 //[note] All ports below 1024 are RESERVED unless you’re the superuser! You can have any port number above that, right up to 65535 (provided they aren’t already being used by another program).
-void Network::PopulateSocket()
+void Network::PopulateSocket(int argc)
 {
+    Network::ArgcError(argc);
     Network::PopulateHints();
     if ((status = getaddrinfo(NULL, PORT, &hints, &head)) != 0) 
     {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-        return;
+        exit(1);
     }
 
     socket_fd = socket(head->ai_family, head->ai_socktype, head->ai_protocol);
@@ -133,11 +147,12 @@ void Network::PopulateSocket()
         else
         {
             fprintf(stderr, "\n[!] Failed to bind socket, WSAGetLastError(): %d\n", WSAGetLastError());
-            return;
+            exit(1);
         }
         return;
     }
 
+    Network::PassMSG("Socket Status");
     freeaddrinfo(head);
 } //Watch HaikYo -> Crunchy Roll -> DumpsterMovie
 
@@ -167,7 +182,7 @@ void Network::HandleMessage(const char *msg,
 
      length_w = strlen(msg);
      //bytes_sent = send(_socket_, msg, length_w, flags);
-     std::string response =HandleHTTP(msg, length_w);
+     std::string response = HandleHTTP(msg, length_w);
      bytes_sent = send(_socket_, response.c_str(), response.length(), flags);
      fprintf(stdout, "\n[SND]\n\n   length: %d\n   bytes: %d\n", length_w, bytes_sent);
 }
@@ -178,7 +193,7 @@ void Network::LoopBounceConnection()
     if ((status = getaddrinfo(NULL, PORT, &hints, &listeninfo)) != 0) 
     {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-        return;
+        exit(1);
     }
     
     socket_fd = socket(listeninfo->ai_family, listeninfo->ai_socktype, listeninfo->ai_protocol);
@@ -201,9 +216,9 @@ void Network::LoopBounceConnection()
         else
         {
             fprintf(stderr, "\n[!] Failed to bind socket, WSAGetLastError(): %d\n", WSAGetLastError());
-            return;
+            exit(1);
         }
-        return;
+        exit(1);
     }
     if(listen(socket_fd, BACKLOG) == SOCKET_ERROR)
     {
@@ -214,9 +229,9 @@ void Network::LoopBounceConnection()
         else
         {
             fprintf(stderr, "\n[!] Failed to listen on socket, WSAGetLastError(): %d\n", WSAGetLastError());
-            return;
+            exit(1);
         }
-        return;
+        exit(1);
     }
     fprintf(stdout, "\n[+] Listening:");
     
@@ -224,11 +239,17 @@ void Network::LoopBounceConnection()
     if(a_socket_fd == INVALID_SOCKET)
     {
         printf("accept() failed: %d\n", WSAGetLastError());
-        return;
+        exit(1);
     }
 
     fprintf(stdout, "\n[+] connection established!");
-    Network::HandleMessage("Hello, World!", a_socket_fd, 0);
+
+    char buffer[30];
+    const char *RSPmessage = buffer;
+    printf("\nType Message: ");
+    fgets(buffer, sizeof(buffer), stdin);
+
+    Network::HandleMessage(RSPmessage, a_socket_fd, 0);
     
     closesocket(a_socket_fd);
     closesocket(socket_fd);

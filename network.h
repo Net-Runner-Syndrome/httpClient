@@ -29,13 +29,15 @@ public:
     socklen_t addr_size = sizeof addr_2;
 
     void *addr;
+    void ArgcError(int argc);
     void PopulateHints();
     void SetupHintsServer();
     void SetupHintsClient();
     void HandleIPVersioni();
     void HandleIPVersionh(); 
-    void PopulateSocket();
+    void PopulateSocket(int argc);
     void LoopBounceConnection();
+    void PassMSG(const char* pSTR="Status");
     void HandleMessage(const char *msg="Hello, World!", SOCKET _socket_ = INVALID_SOCKET, int flags = 0);
     std::string HandleHTTP(const char *msg, int length);
     int ShowIpHostname(int argc, char *argv[]);
